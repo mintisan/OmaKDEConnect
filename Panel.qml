@@ -247,11 +247,7 @@ Panel {
           }
 
           delegate: DeviceRow {
-            required property var model
-            required property int index
             width: ListView.view.width
-            deviceModel: model
-            rowIndex: index
           }
         }
 
@@ -295,13 +291,13 @@ Panel {
   component DeviceRow: CursorSurface {
     id: row
 
-    required property var deviceModel
-    required property int rowIndex
+    required property int index
+    required property string deviceId
+    required property string name
 
-    readonly property string deviceId: String(deviceModel.deviceId || "")
     readonly property var device: KDEConnect.DeviceDbusInterfaceFactory.create(deviceId)
-    readonly property bool selected: root.selectedIndex === rowIndex
-    readonly property string deviceName: String(deviceModel.name || "Device")
+    readonly property bool selected: root.selectedIndex === index
+    readonly property string deviceName: name || "Device"
 
     property var clipboardPlugin: clipboardChecker.available
       ? KDEConnect.ClipboardDbusInterfaceFactory.create(deviceId)
@@ -336,7 +332,7 @@ Panel {
     }
 
     HoverHandler {
-      onHoveredChanged: if (hovered) root.selectedIndex = row.rowIndex
+      onHoveredChanged: if (hovered) root.selectedIndex = row.index
     }
 
     Row {
@@ -393,7 +389,7 @@ Panel {
           enabled: clipboardChecker.available
           opacity: enabled ? 1.0 : 0.4
           onClicked: row.sendClipboard()
-          onHovered: function(isHovered) { if (isHovered) root.selectedIndex = row.rowIndex }
+          onHovered: function(isHovered) { if (isHovered) root.selectedIndex = row.index }
         }
 
         Button {
@@ -404,7 +400,7 @@ Panel {
           enabled: shareChecker.available
           opacity: enabled ? 1.0 : 0.4
           onClicked: row.chooseFiles()
-          onHovered: function(isHovered) { if (isHovered) root.selectedIndex = row.rowIndex }
+          onHovered: function(isHovered) { if (isHovered) root.selectedIndex = row.index }
         }
       }
     }
