@@ -2,11 +2,25 @@
 
 <img src="./preview.png" alt="OmaKDEConnect panel with connected devices and Tailscale discovery" width="712" />
 
-OmaKDEConnect puts the everyday parts of KDE Connect in the Omarchy bar, with
-deep Tailscale integration for peer discovery, machine-name filtering, stable
-address setup, and pairing across networks. It is a small Quickshell front end;
-KDE Connect still owns device discovery, pairing, encryption, clipboard
-synchronization, and file transfer.
+OmaKDEConnect puts KDE Connect in the Omarchy bar with a focus on devices that
+are not always on the same physical LAN. Its optional, direct Tailscale
+integration finds peers across networks and adds their stable addresses to KDE
+Connect; KDE Connect still owns pairing, encryption, clipboard synchronization,
+and file transfer.
+
+## KDE Connect beyond the LAN
+
+KDE Connect's automatic discovery is LAN-oriented. OmaKDEConnect adds an
+optional setup path for devices connected to the same Tailscale network:
+
+- Reads peers locally from `tailscale status --json` without an API token
+- Shows Tailscale machine names and filters by machine name, host name, DNS name, IP address, or OS
+- Adds a selected peer's stable Tailscale IPv4 address to KDE Connect's saved custom addresses
+- Shows this computer's LAN and Tailscale IPv4 addresses so another device can connect back
+
+After an address is added, KDE Connect handles the encrypted pairing and data
+transfer over that network path. Tailscale is not required: normal LAN
+discovery and manually entered LAN or VPN addresses remain available.
 
 ## Features
 
@@ -30,10 +44,11 @@ synchronization, and file transfer.
 - Omarchy Shell with third-party plugin support
 - `kdeconnect`
 - KDE Connect on the other device you want to pair
+- Optional: Tailscale on both devices, connected to the same tailnet, for cross-network use
 
-Tailscale is optional. If it is installed and connected, OmaKDEConnect lists
-its peers so their stable Tailscale IPv4 address can be added with one click.
-Manual addresses and normal LAN discovery continue to work without Tailscale.
+When Tailscale is available, OmaKDEConnect lists local tailnet peers so their
+stable Tailscale IPv4 address can be added with one click. Manual addresses and
+normal LAN discovery continue to work without Tailscale.
 
 For routed VPNs such as Tailscale, add the peer's VPN address in KDE Connect
 and allow KDE Connect's TCP/UDP port range (`1714-1764`) on the VPN interface.
