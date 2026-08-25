@@ -301,8 +301,8 @@ Panel {
     readonly property string deviceId: String(deviceModel.deviceId || "")
     readonly property var device: KDEConnect.DeviceDbusInterfaceFactory.create(deviceId)
     readonly property bool selected: root.selectedIndex === rowIndex
-    readonly property string deviceName: device ? String(device.name || deviceModel.name || "Device") : String(deviceModel.name || "Device")
-    readonly property string deviceType: device ? String(device.type || "device") : "device"
+    readonly property string deviceName: String(deviceModel.name || "Device")
+    readonly property string deviceIconName: String(deviceModel.iconName || "")
     readonly property bool reachable: device ? device.isReachable : true
 
     property var clipboardPlugin: clipboardChecker.available
@@ -353,8 +353,8 @@ Panel {
 
       Text {
         anchors.verticalCenter: parent.verticalCenter
-        text: row.deviceType === "phone" ? "󰏲"
-          : row.deviceType === "tablet" ? "󰓶"
+        text: row.deviceIconName.indexOf("phone") !== -1 ? "󰏲"
+          : row.deviceIconName.indexOf("tablet") !== -1 ? "󰓶"
           : "󰌢"
         color: root.bar.foreground
         font.family: root.bar.fontFamily
