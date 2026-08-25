@@ -1,6 +1,10 @@
 # OmaKDEConnect
 
-![OmaKDEConnect panel with connected devices and Tailscale discovery](./screenshot.png)
+<img
+  src="./preview.png"
+  alt="OmaKDEConnect panel with connected devices and Tailscale discovery"
+  width="712"
+>
 
 OmaKDEConnect puts the everyday parts of KDE Connect in the Omarchy bar, with
 deep Tailscale integration for peer discovery, machine-name filtering, stable
@@ -69,6 +73,12 @@ omarchy restart shell
 The KDE Connect settings window does not need to remain open. Communication is
 handled by `kdeconnectd`, which the KDE Connect package registers for desktop
 autostart and D-Bus activation. OmaKDEConnect talks directly to that daemon.
+
+## Remove
+
+```bash
+omarchy plugin remove omakdeconnect
+```
 
 ## Use
 
