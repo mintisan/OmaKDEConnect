@@ -2,10 +2,10 @@
   "schemaVersion": 1,
   "id": "omakdeconnect",
   "name": "OmaKDEConnect",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "author": "Mintisan",
   "license": "MIT",
-  "description": "KDE Connect devices, clipboard sharing, and file transfer in the Omarchy bar.",
+  "description": "KDE Connect discovery, pairing, Tailscale peers, clipboard sharing, and file transfer in the Omarchy bar.",
   "kinds": [
     "bar-widget"
   ],
@@ -14,7 +14,7 @@
   },
   "barWidget": {
     "displayName": "OmaKDEConnect",
-    "description": "See connected KDE Connect devices and quickly share the clipboard or files.",
+    "description": "Discover and pair KDE Connect devices over LAN, Tailscale, or a saved IP address, then share the clipboard or files.",
     "category": "Network",
     "allowMultiple": false,
     "defaultSection": "right"
