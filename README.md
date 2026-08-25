@@ -1,10 +1,6 @@
 # OmaKDEConnect
 
-<img
-  src="./preview.png"
-  alt="OmaKDEConnect panel with connected devices and Tailscale discovery"
-  width="712"
->
+<img src="./preview.png" alt="OmaKDEConnect panel with connected devices and Tailscale discovery" width="712" />
 
 OmaKDEConnect puts the everyday parts of KDE Connect in the Omarchy bar, with
 deep Tailscale integration for peer discovery, machine-name filtering, stable
