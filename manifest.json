@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "omakdeconnect",
+  "name": "OmaKDEConnect",
+  "version": "0.1.0",
+  "author": "Mintisan",
+  "license": "MIT",
+  "description": "KDE Connect devices, clipboard sharing, and file transfer in the Omarchy bar.",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "Panel.qml"
+  },
+  "barWidget": {
+    "displayName": "OmaKDEConnect",
+    "description": "See connected KDE Connect devices and quickly share the clipboard or files.",
+    "category": "Network",
+    "allowMultiple": false,
+    "defaultSection": "right"
+  }
+}
