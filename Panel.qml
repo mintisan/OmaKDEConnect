@@ -302,8 +302,6 @@ Panel {
     readonly property var device: KDEConnect.DeviceDbusInterfaceFactory.create(deviceId)
     readonly property bool selected: root.selectedIndex === rowIndex
     readonly property string deviceName: String(deviceModel.name || "Device")
-    readonly property bool reachable: device ? device.isReachable : true
-    property string deviceType: "device"
 
     property var clipboardPlugin: clipboardChecker.available
       ? KDEConnect.ClipboardDbusInterfaceFactory.create(deviceId)
@@ -324,11 +322,6 @@ Panel {
     height: rowContent.implicitHeight + Style.space(14)
     hasCursor: selected
     foreground: root.bar.foreground
-    opacity: reachable ? 1.0 : 0.5
-
-    Component.onCompleted: {
-      if (device) deviceType = String(device.type || "device")
-    }
 
     KDEConnect.PluginChecker {
       id: clipboardChecker
@@ -355,14 +348,12 @@ Panel {
       anchors.rightMargin: Style.space(8)
       spacing: Style.space(10)
 
-      Text {
+      OmaKDEConnectIcon {
+        width: Style.space(24)
+        height: width
         anchors.verticalCenter: parent.verticalCenter
-        text: row.deviceType === "phone" ? "󰏲"
-          : row.deviceType === "tablet" ? "󰓶"
-          : "󰌢"
         color: root.bar.foreground
-        font.family: root.bar.fontFamily
-        font.pixelSize: Style.font.iconLarge
+        connected: false
       }
 
       Column {
@@ -382,8 +373,8 @@ Panel {
 
         Text {
           width: parent.width
-          text: row.reachable ? "Connected" : "Unavailable"
-          color: row.reachable ? root.bar.foreground : root.dimmedForeground
+          text: "Connected"
+          color: root.bar.foreground
           font.family: root.bar.fontFamily
           font.pixelSize: Style.font.caption
         }
@@ -399,7 +390,7 @@ Panel {
           iconText: "󰅇"
           tooltipText: clipboardChecker.available ? "Send current clipboard" : "Clipboard plugin unavailable"
           foreground: root.bar.foreground
-          enabled: row.reachable && clipboardChecker.available
+          enabled: clipboardChecker.available
           opacity: enabled ? 1.0 : 0.4
           onClicked: row.sendClipboard()
           onHovered: function(isHovered) { if (isHovered) root.selectedIndex = row.rowIndex }
@@ -410,7 +401,7 @@ Panel {
           iconText: "󰈔"
           tooltipText: shareChecker.available ? "Choose files to send" : "Share plugin unavailable"
           foreground: root.bar.foreground
-          enabled: row.reachable && shareChecker.available
+          enabled: shareChecker.available
           opacity: enabled ? 1.0 : 0.4
           onClicked: row.chooseFiles()
           onHovered: function(isHovered) { if (isHovered) root.selectedIndex = row.rowIndex }
