@@ -302,8 +302,8 @@ Panel {
     readonly property var device: KDEConnect.DeviceDbusInterfaceFactory.create(deviceId)
     readonly property bool selected: root.selectedIndex === rowIndex
     readonly property string deviceName: String(deviceModel.name || "Device")
-    readonly property string deviceIconName: String(deviceModel.iconName || "")
     readonly property bool reachable: device ? device.isReachable : true
+    property string deviceType: "device"
 
     property var clipboardPlugin: clipboardChecker.available
       ? KDEConnect.ClipboardDbusInterfaceFactory.create(deviceId)
@@ -325,6 +325,10 @@ Panel {
     hasCursor: selected
     foreground: root.bar.foreground
     opacity: reachable ? 1.0 : 0.5
+
+    Component.onCompleted: {
+      if (device) deviceType = String(device.type || "device")
+    }
 
     KDEConnect.PluginChecker {
       id: clipboardChecker
@@ -353,8 +357,8 @@ Panel {
 
       Text {
         anchors.verticalCenter: parent.verticalCenter
-        text: row.deviceIconName.indexOf("phone") !== -1 ? "󰏲"
-          : row.deviceIconName.indexOf("tablet") !== -1 ? "󰓶"
+        text: row.deviceType === "phone" ? "󰏲"
+          : row.deviceType === "tablet" ? "󰓶"
           : "󰌢"
         color: root.bar.foreground
         font.family: root.bar.fontFamily
