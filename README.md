@@ -30,13 +30,17 @@ discovery and manually entered LAN or VPN addresses remain available.
 - Filters Tailscale peers by machine name, host name, DNS name, IP address, or OS from the address field
 - Adds Tailscale, LAN, or other VPN IP addresses to KDE Connect
 - Remembers custom addresses and previously paired devices across restarts
-- Accepts or rejects incoming pairing requests without opening KDE Connect settings
+- Shows KDE Connect's verification key and accepts or rejects incoming pairing requests in the panel
+- Shows device battery and charging status when the peer exposes it
+- Only shows actions supported by each device, including Ring, Ping, Share Text, Clipboard, and Files
+- Remembers the preferred send device and selects it the next time the panel opens
 - Sends the current desktop clipboard to a selected device
 - Opens a native multi-file picker and transfers the selected files
 - Reports command success, pairing progress, timeouts, and failures
-- Detects whether KDE Connect and optional Tailscale support are available
+- Detects KDE Connect, optional Tailscale, and KDE Connect's listening port range, with actionable diagnostics
 - Shows this computer's LAN and Tailscale IPv4 addresses for incoming connections
 - Opens KDE Connect settings on demand for pairing and advanced features
+- Refreshes from KDE Connect D-Bus events, with low-frequency polling as a fallback
 - Supports keyboard navigation and smooth inertial scrolling for long device lists
 
 ## Requirements
@@ -108,6 +112,7 @@ Tailscale IPv4 address, so another device can enter the appropriate address.
 - `j` / `k` or arrow keys: select a device
 - `Enter` or `c`: send the current clipboard
 - `f`: choose files to send
+- `t`: enter text to share
 - `d` or `r`: discover devices on the LAN and saved addresses
 - `a`: focus the manual address field
 - `p`: pair the first discovered, unpaired device
@@ -127,7 +132,8 @@ Tailscale IPv4 address, so another device can enter the appropriate address.
    and moves the device into **Connected devices**.
 
 If the other device starts pairing first, the panel displays **Accept** and
-**Reject** instead. Compare the verification key shown on both devices before
+**Reject** instead. Compare the verification key read directly from KDE
+Connect and shown in the panel with the key on the other device before
 accepting. The KDE Connect app on the other device may need to be open or
 allowed to run in the background, depending on that operating system.
 
@@ -159,7 +165,9 @@ bar.
 OmaKDEConnect talks to the existing `kdeconnectd` process through KDE
 Connect's DBus interface and `kdeconnect-cli`. Tailscale peer information comes
 from `tailscale status --json`. It does not reimplement either protocol and
-does not start a second background daemon.
+does not start a second background daemon. A read-only D-Bus monitor refreshes
+device state after reachability, pairing, plugin, and battery events; a
+low-frequency poll remains as recovery if an event is missed.
 
 ## Validate
 

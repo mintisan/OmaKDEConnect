@@ -23,15 +23,16 @@ CursorSurface {
 
   signal primaryClicked()
   signal secondaryClicked()
-  signal rowHovered()
+  signal rowClicked()
 
   width: parent ? parent.width : implicitWidth
   height: rowContent.implicitHeight + Style.space(14)
-  hasCursor: selected
+  hasCursor: rowHover.hovered
+  current: selected
   foreground: Color.foreground
 
   HoverHandler {
-    onHoveredChanged: if (hovered) root.rowHovered()
+    id: rowHover
   }
 
   Row {
@@ -58,9 +59,13 @@ CursorSurface {
       anchors.verticalCenter: parent.verticalCenter
       spacing: Style.space(2)
 
+      TapHandler {
+        onTapped: root.rowClicked()
+      }
+
       Text {
         width: parent.width
-        text: root.title
+        text: (root.selected ? "󰄬  " : "") + root.title
         color: root.foreground
         font.family: Style.font.family
         font.pixelSize: Style.font.body

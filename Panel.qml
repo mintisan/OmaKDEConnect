@@ -4,6 +4,7 @@ import Quickshell
 import Quickshell.Io
 import qs.Commons
 import qs.Ui
+import "ProcessLimits.js" as ProcessLimits
 
 Panel {
   id: root
@@ -16,18 +17,23 @@ Panel {
   property string pendingFileDeviceId: ""
   property string pendingFileDeviceName: ""
   property string manualAddressError: ""
+  property bool diagnosticsOpen: false
+  property bool shareTextOpen: false
+  property string shareTextDeviceId: ""
+  property bool selectionChosen: false
   property string _filePickerOutput: ""
   property string _filePickerError: ""
 
   readonly property int deviceCount: connection.connectedDevices.length
   readonly property bool connected: deviceCount > 0
+  readonly property var selectedConnectedDevice: deviceCount > 0 ? connection.connectedDevices[selectedIndex] : null
+  readonly property string preferredDeviceId: String(setting("preferredDeviceId", ""))
   readonly property color foreground: bar ? bar.foreground : Color.foreground
   readonly property color urgent: bar ? bar.urgent : Color.urgent
   readonly property color dimmedForeground: Qt.darker(foreground, 1.55)
   readonly property string fontFamily: bar ? bar.fontFamily : Style.font.family
   readonly property bool manualAddressValid: connection.addressError(addressField.text) === ""
   readonly property var tailscaleMatches: connection.filteredTailscalePeers(addressField.text, 8)
-  readonly property var notificationService: bar && bar.shell ? bar.shell.firstPartyServiceFor("omarchy.notifications") : null
 
   function clampSelection() {
     if (deviceCount <= 0) {
@@ -40,12 +46,55 @@ Panel {
   function moveSelection(delta) {
     if (deviceCount <= 0) return
     selectedIndex = Math.max(0, Math.min(deviceCount - 1, selectedIndex + delta))
+    selectionChosen = true
     scrollSelectedDeviceIntoView()
   }
 
   function selectedDevice() {
-    if (deviceCount <= 0) return null
-    return connection.connectedDevices[selectedIndex]
+    return selectedConnectedDevice
+  }
+
+  function deviceById(id) {
+    for (var i = 0; i < connection.connectedDevices.length; i++) {
+      if (connection.connectedDevices[i].id === id) return connection.connectedDevices[i]
+    }
+    return null
+  }
+
+  function selectDevice(index) {
+    if (index < 0 || index >= deviceCount) return
+    selectedIndex = index
+    selectionChosen = true
+  }
+
+  function restorePreferredSelection() {
+    if (deviceCount <= 0) {
+      selectedIndex = 0
+      return
+    }
+    for (var i = 0; i < connection.connectedDevices.length; i++) {
+      if (connection.connectedDevices[i].id === preferredDeviceId) {
+        selectedIndex = i
+        return
+      }
+    }
+    selectedIndex = 0
+  }
+
+  function rememberDevice(device) {
+    if (!device || device.id === preferredDeviceId) return
+    var next = Object.assign({}, settings, { preferredDeviceId: device.id })
+    root.settings = next
+    if (bar && bar.shell && typeof bar.shell.updateEntryInline === "function")
+      bar.shell.updateEntryInline(moduleName, next)
+  }
+
+  function connectedSubtitle(device) {
+    var parts = ["Connected"]
+    var battery = connection.batteryText(device).replace("% battery", "%").replace(" · charging", " ⚡")
+    if (battery !== "") parts.push(battery)
+    if (device.id === preferredDeviceId) parts.push("preferred")
+    return parts.join(" · ")
   }
 
   function scrollItemIntoView(item) {
@@ -68,22 +117,72 @@ Panel {
   }
 
   function sendSelectedClipboard() {
-    connection.sendClipboard(selectedDevice())
+    var device = selectedDevice()
+    if (!device) return
+    if (!connection.deviceSupports(device, "kdeconnect_clipboard")) {
+      connection.showMessage("Clipboard sharing is unavailable on " + device.name, "warning", false)
+      return
+    }
+    rememberDevice(device)
+    connection.sendClipboard(device)
   }
 
   function chooseFiles(device) {
     if (!device || filePickerProcess.running) return
+    if (!connection.deviceSupports(device, "kdeconnect_share")) {
+      connection.showMessage("File sharing is unavailable on " + device.name, "warning", false)
+      return
+    }
+    rememberDevice(device)
     pendingFileDeviceId = device.id
     pendingFileDeviceName = device.name
     _filePickerOutput = ""
     _filePickerError = ""
     close()
-    filePickerProcess.command = ["omarchy-file-select", "--title", "Choose files to send", "--multiple"]
+    filePickerProcess.command = ProcessLimits.boundedCommand(
+      ["omarchy-file-select", "--title", "Choose files to send", "--multiple"],
+      524288, 16384)
     filePickerProcess.running = true
   }
 
   function sendSelectedFiles() {
     chooseFiles(selectedDevice())
+  }
+
+  function ringSelectedDevice() {
+    var device = selectedDevice()
+    if (!device) return
+    rememberDevice(device)
+    connection.ringDevice(device)
+  }
+
+  function pingSelectedDevice() {
+    var device = selectedDevice()
+    if (!device) return
+    rememberDevice(device)
+    connection.pingDevice(device)
+  }
+
+  function showShareText(device) {
+    if (!device) return
+    if (!connection.deviceSupports(device, "kdeconnect_share")) {
+      connection.showMessage("Text sharing is unavailable on " + device.name, "warning", false)
+      return
+    }
+    rememberDevice(device)
+    shareTextDeviceId = device.id
+    shareTextOpen = true
+    Qt.callLater(function() { shareTextField.forceActiveFocus() })
+  }
+
+  function sendSharedText() {
+    var device = deviceById(shareTextDeviceId)
+    if (connection.shareText(device, shareTextField.text)) {
+      shareTextField.text = ""
+      shareTextOpen = false
+      shareTextDeviceId = ""
+      keyCatcher.forceActiveFocus()
+    }
   }
 
   function commitManualAddress() {
@@ -105,24 +204,16 @@ Panel {
   }
 
   function pairingRequestText(device) {
-    var service = notificationService
-    var model = service ? service.popupModel : null
-    if (model) {
-      for (var i = 0; i < model.count; i++) {
-        var row = model.get(i)
-        var app = String((row && row.app) || "").toLowerCase()
-        var body = String((row && row.body) || "")
-        if (app.indexOf("kde connect") !== -1 && body.toLowerCase().indexOf("pairing request from " + device.name.toLowerCase()) !== -1)
-          return body.replace(/\s*\n\s*/g, " · ")
-      }
-    }
-    return "Incoming pairing request · compare the verification key on both devices"
+    var key = String((device && device.verificationKey) || "")
+    return key !== ""
+      ? "Verify " + key + " on both devices · incoming request"
+      : "Incoming request · compare the verification key on both devices"
   }
 
   function openSettings() {
     if (!connection.kdeAppInstalled) return
     close()
-    Quickshell.execDetached(["kdeconnect-app", "--replace"])
+    Quickshell.execDetached(["kdeconnect-app"])
   }
 
   function openTailscale() {
@@ -135,6 +226,8 @@ Panel {
 
   onOpenedChanged: {
     if (opened) {
+      selectionChosen = false
+      restorePreferredSelection()
       connection.refreshAll()
       Qt.callLater(function() { keyCatcher.forceActiveFocus() })
     }
@@ -148,7 +241,14 @@ Panel {
 
   Connections {
     target: connection
-    function onConnectedDevicesChanged() { root.clampSelection() }
+    function onConnectedDevicesChanged() {
+      if (root.shareTextOpen && !root.deviceById(root.shareTextDeviceId)) {
+        root.shareTextOpen = false
+        root.shareTextDeviceId = ""
+      }
+      if (root.selectionChosen) root.clampSelection()
+      else root.restorePreferredSelection()
+    }
   }
 
   Process {
@@ -165,11 +265,11 @@ Panel {
       root.pendingFileDeviceId = ""
       root.pendingFileDeviceName = ""
       if (exitCode === 0) {
-        var paths = output.split(/\r?\n/).filter(function(path) { return path !== "" })
+        var paths = connection.parseFilePickerOutput(output)
         if (paths.length > 0) connection.shareFiles(deviceId, deviceName, paths)
         else connection.showMessage("The file chooser returned no files", "error", true)
       } else if (exitCode !== 1) {
-        connection.showMessage(connection.elideError(error, "Could not open the file chooser"), "error", true)
+        connection.showMessage(connection.processError(exitCode, error, "Could not open the file chooser"), "error", true)
       }
     }
   }
@@ -187,7 +287,7 @@ Panel {
     function status(): string {
       if (!connection.kdeInstalled) return "KDE Connect not installed"
       if (!connection.kdeReady) return "KDE Connect daemon unavailable"
-      return root.deviceCount + " connected"
+      return root.deviceCount + " connected · " + (connection.eventMonitorRunning ? "live updates" : "fallback polling")
     }
   }
 
@@ -238,7 +338,7 @@ Panel {
     PanelKeyCatcher {
       id: keyCatcher
       anchors.fill: parent
-      blocked: addressField.activeFocus
+      blocked: addressField.activeFocus || shareTextField.activeFocus
       onMoveRequested: function(dx, dy) {
         if (dy !== 0) root.moveSelection(dy)
       }
@@ -248,6 +348,8 @@ Panel {
       onTextKey: function(text) {
         if (text === "c" || text === "C") root.sendSelectedClipboard()
         else if (text === "f" || text === "F") root.sendSelectedFiles()
+        else if ((text === "t" || text === "T") && root.selectedConnectedDevice
+          && connection.deviceSupports(root.selectedConnectedDevice, "kdeconnect_share")) root.showShareText(root.selectedConnectedDevice)
         else if (text === "r" || text === "R" || text === "d" || text === "D") connection.startDiscovery("")
         else if (text === "a" || text === "A") addressField.forceActiveFocus()
         else if ((text === "p" || text === "P") && connection.discoveredDevices.length > 0) {
@@ -397,39 +499,78 @@ Panel {
 
               Text {
                 width: parent.width
-                text: "KDE Connect  " + (!connection.environmentChecked ? "Checking…" : connection.kdeInstalled ? (connection.kdeReady ? "Ready" : "Daemon unavailable") : "Not installed")
+                text: "KDE Connect  "
+                  + (!connection.environmentChecked ? "Checking…" : connection.kdeInstalled ? (connection.kdeReady ? "Ready" : "Daemon unavailable") : "Not installed")
+                  + "  ·  Tailscale  "
+                  + (!connection.environmentChecked ? "Checking…" : connection.tailscaleStatus)
                 color: connection.kdeReady ? root.foreground : root.urgent
                 font.family: root.fontFamily
                 font.pixelSize: Style.font.bodySmall
                 font.bold: true
-              }
-
-              Text {
-                width: parent.width
-                text: "Tailscale  " + (!connection.environmentChecked ? "Checking…" : connection.tailscaleStatus)
-                color: connection.tailscaleRunning ? root.foreground : root.dimmedForeground
-                font.family: root.fontFamily
-                font.pixelSize: Style.font.bodySmall
                 elide: Text.ElideRight
               }
 
               Text {
                 width: parent.width
-                text: "LAN IP  " + (!connection.environmentChecked ? "Checking…" : connection.localLanAddress || "Unavailable")
-                color: connection.localLanAddress ? root.foreground : root.dimmedForeground
+                text: "LAN IP  "
+                  + (!connection.environmentChecked ? "Checking…" : connection.localLanAddress || "Unavailable")
+                  + "  ·  Tailscale IP  "
+                  + (!connection.environmentChecked ? "Checking…" : connection.localTailscaleAddress || "Not connected")
+                color: connection.localLanAddress || connection.localTailscaleAddress ? root.foreground : root.dimmedForeground
                 font.family: root.fontFamily
                 font.pixelSize: Style.font.bodySmall
                 elide: Text.ElideRight
               }
 
-              Text {
+              Row {
                 width: parent.width
-                text: "Tailscale IP  " + (!connection.environmentChecked ? "Checking…" : connection.localTailscaleAddress || "Not connected")
-                color: connection.localTailscaleAddress ? root.foreground : root.dimmedForeground
-                font.family: root.fontFamily
-                font.pixelSize: Style.font.bodySmall
-                elide: Text.ElideRight
+                spacing: Style.space(8)
+
+                Text {
+                  width: Math.max(0, parent.width - diagnosticsButton.width - parent.spacing)
+                  anchors.verticalCenter: parent.verticalCenter
+                  text: "Ports 1714–1764  " + (!connection.environmentChecked ? "Checking…" : connection.kdePortsListening ? "Listening" : "Not detected")
+                  color: connection.kdePortsListening ? root.foreground : root.dimmedForeground
+                  font.family: root.fontFamily
+                  font.pixelSize: Style.font.bodySmall
+                  elide: Text.ElideRight
+                }
+
+                Button {
+                  id: diagnosticsButton
+                  anchors.verticalCenter: parent.verticalCenter
+                  text: root.diagnosticsOpen ? "Hide checks" : "Diagnostics"
+                  iconText: "󰒓"
+                  tooltipText: "Show installation, daemon, Tailscale, and firewall checks"
+                  foreground: root.foreground
+                  horizontalPadding: Style.spacing.controlPaddingX
+                  verticalPadding: Style.spacing.controlPaddingY
+                  onClicked: root.diagnosticsOpen = !root.diagnosticsOpen
+                }
               }
+            }
+          }
+
+          BorderSurface {
+            visible: root.diagnosticsOpen
+            width: parent.width
+            height: diagnosticsText.implicitHeight + Style.space(20)
+            color: Style.normalFillFor(root.foreground)
+            borderSpec: Border.controlSpec("normal", root.foreground, Color.accent)
+            radius: Style.cornerRadius
+
+            Text {
+              id: diagnosticsText
+              anchors.left: parent.left
+              anchors.right: parent.right
+              anchors.verticalCenter: parent.verticalCenter
+              anchors.leftMargin: Style.space(12)
+              anchors.rightMargin: Style.space(12)
+              text: connection.diagnosticText()
+              color: root.dimmedForeground
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.bodySmall
+              wrapMode: Text.WordWrap
             }
           }
 
@@ -478,21 +619,138 @@ Panel {
                 required property int index
                 required property var modelData
                 title: modelData.name
-                subtitle: "Connected · pairing remembered"
+                subtitle: root.connectedSubtitle(modelData)
                 selected: root.selectedIndex === index
                 iconText: "󰌹"
                 foreground: root.foreground
                 primaryText: "Clipboard"
                 primaryIcon: "󰅇"
-                primaryTooltip: "Send current clipboard"
-                primaryEnabled: !connection.actionBusy
+                primaryTooltip: connection.deviceSupports(modelData, "kdeconnect_clipboard")
+                  ? "Send current clipboard"
+                  : "Clipboard sharing is unavailable on this device"
+                primaryEnabled: !connection.actionBusy && connection.deviceSupports(modelData, "kdeconnect_clipboard")
                 secondaryText: "Files"
                 secondaryIcon: "󰈔"
-                secondaryTooltip: "Choose files to send"
-                secondaryEnabled: !connection.actionBusy
-                onRowHovered: root.selectedIndex = index
-                onPrimaryClicked: connection.sendClipboard(modelData)
-                onSecondaryClicked: root.chooseFiles(modelData)
+                secondaryTooltip: connection.deviceSupports(modelData, "kdeconnect_share")
+                  ? "Choose files to send"
+                  : "File sharing is unavailable on this device"
+                secondaryEnabled: !connection.actionBusy && connection.deviceSupports(modelData, "kdeconnect_share")
+                onRowClicked: root.selectDevice(index)
+                onPrimaryClicked: {
+                  root.selectDevice(index)
+                  root.sendSelectedClipboard()
+                }
+                onSecondaryClicked: {
+                  root.selectDevice(index)
+                  root.chooseFiles(modelData)
+                }
+              }
+            }
+          }
+
+          Column {
+            visible: root.connected && root.selectedConnectedDevice !== null
+            width: parent.width
+            spacing: Style.space(4)
+
+            Text {
+              width: parent.width
+              text: "SELECTED DEVICE  ·  " + (root.selectedConnectedDevice ? root.selectedConnectedDevice.name : "")
+              color: root.dimmedForeground
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.caption
+              font.bold: true
+              elide: Text.ElideRight
+            }
+
+            Row {
+              width: parent.width
+              spacing: Style.space(6)
+
+              Button {
+                visible: connection.deviceSupports(root.selectedConnectedDevice, "kdeconnect_findmyphone")
+                text: "Ring"
+                iconText: "󰂞"
+                tooltipText: "Ring " + (root.selectedConnectedDevice ? root.selectedConnectedDevice.name : "the selected device")
+                foreground: root.foreground
+                enabled: !connection.actionBusy
+                opacity: enabled ? 1.0 : 0.45
+                onClicked: root.ringSelectedDevice()
+              }
+
+              Button {
+                visible: connection.deviceSupports(root.selectedConnectedDevice, "kdeconnect_ping")
+                text: "Ping"
+                iconText: "󰓅"
+                tooltipText: "Send a KDE Connect ping to " + (root.selectedConnectedDevice ? root.selectedConnectedDevice.name : "the selected device")
+                foreground: root.foreground
+                enabled: !connection.actionBusy
+                opacity: enabled ? 1.0 : 0.45
+                onClicked: root.pingSelectedDevice()
+              }
+
+              Button {
+                visible: connection.deviceSupports(root.selectedConnectedDevice, "kdeconnect_share")
+                text: "Text"
+                iconText: "󰦨"
+                tooltipText: "Share text with " + (root.selectedConnectedDevice ? root.selectedConnectedDevice.name : "the selected device")
+                foreground: root.foreground
+                enabled: !connection.actionBusy
+                opacity: enabled ? 1.0 : 0.45
+                onClicked: root.showShareText(root.selectedConnectedDevice)
+              }
+
+              Button {
+                text: root.selectedConnectedDevice && root.selectedConnectedDevice.id === root.preferredDeviceId ? "Preferred" : "Set preferred"
+                iconText: "󰓎"
+                tooltipText: "Select this device by default when the panel opens"
+                foreground: root.foreground
+                enabled: root.selectedConnectedDevice && root.selectedConnectedDevice.id !== root.preferredDeviceId
+                opacity: enabled ? 1.0 : 0.65
+                onClicked: root.rememberDevice(root.selectedConnectedDevice)
+              }
+            }
+          }
+
+          Rectangle {
+            visible: root.shareTextOpen
+            width: parent.width
+            height: shareTextRow.implicitHeight + Style.space(16)
+            radius: Style.cornerRadius
+            color: Qt.rgba(root.foreground.r, root.foreground.g, root.foreground.b, 0.055)
+            border.color: Qt.rgba(root.foreground.r, root.foreground.g, root.foreground.b, 0.1)
+
+            Row {
+              id: shareTextRow
+              anchors.left: parent.left
+              anchors.right: parent.right
+              anchors.verticalCenter: parent.verticalCenter
+              anchors.leftMargin: Style.space(8)
+              anchors.rightMargin: Style.space(8)
+              spacing: Style.space(8)
+
+              TextField {
+                id: shareTextField
+                width: parent.width - sendTextButton.width - parent.spacing
+                placeholderText: "Text to share with " + (root.deviceById(root.shareTextDeviceId) ? root.deviceById(root.shareTextDeviceId).name : "device")
+                foreground: root.foreground
+                enabled: !connection.actionBusy
+                onAccepted: root.sendSharedText()
+                Keys.onEscapePressed: {
+                  root.shareTextOpen = false
+                  root.shareTextDeviceId = ""
+                  keyCatcher.forceActiveFocus()
+                }
+              }
+
+              Button {
+                id: sendTextButton
+                text: "Send"
+                iconText: "󰒊"
+                foreground: root.foreground
+                enabled: !connection.actionBusy && shareTextField.text.trim() !== ""
+                opacity: enabled ? 1.0 : 0.45
+                onClicked: root.sendSharedText()
               }
             }
           }
@@ -646,7 +904,11 @@ Panel {
                 readonly property bool incomingRequest: modelData.pairRequestedByPeer === true
                 subtitle: incomingRequest
                   ? root.pairingRequestText(modelData)
-                  : connection.waitingPairId === modelData.id ? "Waiting for confirmation on the other device…" : "Reachable · not paired"
+                  : connection.waitingPairId === modelData.id
+                    ? (modelData.verificationKey
+                      ? "Verify " + modelData.verificationKey + " on both devices · waiting for confirmation…"
+                      : "Waiting for confirmation on the other device…")
+                    : "Reachable · not paired"
                 iconText: "󰐕"
                 foreground: root.foreground
                 primaryText: incomingRequest ? "Accept" : connection.waitingPairId === modelData.id ? "Waiting" : "Pair"
@@ -762,7 +1024,7 @@ Panel {
 
           Text {
             width: parent.width
-            text: "j/k: select connected device  ·  c: clipboard  ·  f: files  ·  d: discover  ·  a: add address  ·  p: pair first device"
+            text: "j/k: select device  ·  c: clipboard  ·  f: files  ·  t: text  ·  d: discover  ·  a: add address  ·  p: pair first device"
             color: root.dimmedForeground
             font.family: root.fontFamily
             font.pixelSize: Style.font.caption

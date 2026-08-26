@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "omakdeconnect",
   "name": "OmaKDEConnect",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "author": "Mintisan",
   "license": "MIT",
   "description": "KDE Connect beyond the LAN with Tailscale peer discovery, stable-address pairing, clipboard sharing, and file transfer in the Omarchy bar.",
@@ -14,7 +14,7 @@
   },
   "barWidget": {
     "displayName": "OmaKDEConnect",
-    "description": "Find and pair KDE Connect devices over LAN, Tailscale, or saved VPN IPs, then share clipboard content and files.",
+    "description": "Find and pair KDE Connect devices over LAN, Tailscale, or saved VPN IPs, then share clipboard content, text, and files.",
     "category": "Network",
     "allowMultiple": false,
     "defaultSection": "right"
