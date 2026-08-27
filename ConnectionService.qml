@@ -466,8 +466,12 @@ Item {
 
   Process {
     id: kdeEventMonitor
-    command: ["busctl", "--user", "monitor", "--match=type='signal',path_namespace='/modules/kdeconnect'"]
+    command: ProcessLimits.boundedEventCommand([
+      "busctl", "--user", "monitor",
+      "--match=type='signal',sender='org.kde.kdeconnect',path_namespace='/modules/kdeconnect'"
+    ])
     running: false
+    // Raw D-Bus fields are reduced to fixed "event\n" records before QML.
     stdout: SplitParser {
       onRead: function() { eventRefreshTimer.restart() }
     }

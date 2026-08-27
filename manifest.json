@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "omakdeconnect",
   "name": "OmaKDEConnect",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "author": "Mintisan",
   "license": "MIT",
   "description": "KDE Connect beyond the LAN with Tailscale peer discovery, stable-address pairing, clipboard sharing, and file transfer in the Omarchy bar.",

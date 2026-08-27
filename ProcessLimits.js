@@ -33,6 +33,15 @@ var wrapperScript = [
   "exit \"$status\""
 ].join("\n")
 
+var eventWrapperScript = [
+  "set -o pipefail",
+  "export LC_ALL=C",
+  "\"$@\" 2>/dev/null | fold -b -w 1024 |",
+  "while IFS= read -r bounded_line; do",
+  "  if [ -z \"$bounded_line\" ]; then printf 'event\\n'; fi",
+  "done"
+].join("\n")
+
 function captureLimit(value, fallback) {
   var limit = Math.floor(Number(value))
   if (!isFinite(limit) || limit < 0) limit = fallback
@@ -46,6 +55,13 @@ function boundedCommand(command, stdoutBytes, stderrBytes) {
     String(captureLimit(stdoutBytes, 65536)),
     String(captureLimit(stderrBytes, 16384))
   ]
+  for (var i = 0; i < args.length; i++) result.push(String(args[i]))
+  return result
+}
+
+function boundedEventCommand(command) {
+  var args = command && typeof command.length === "number" ? command : []
+  var result = ["bash", "-c", eventWrapperScript, "omakdeconnect-events"]
   for (var i = 0; i < args.length; i++) result.push(String(args[i]))
   return result
 }
