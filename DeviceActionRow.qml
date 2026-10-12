@@ -1,5 +1,6 @@
 import QtQuick
 import qs.Commons
+import qs.Commons as Commons
 import qs.Ui
 
 CursorSurface {
@@ -29,7 +30,7 @@ CursorSurface {
   height: rowContent.implicitHeight + Style.space(14)
   hasCursor: rowHover.hovered
   current: selected
-  foreground: Color.foreground
+  foreground: Commons.Color.foreground
 
   HoverHandler {
     id: rowHover
