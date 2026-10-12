@@ -1,11 +1,12 @@
 import QtQuick
 import qs.Commons
+import qs.Commons as Commons
 
 Item {
   id: root
 
-  property color color: Color.foreground
-  property color badgeColor: Color.accent
+  property color color: Commons.Color.foreground
+  property color badgeColor: Commons.Color.accent
   property bool connected: false
   property int deviceCount: 0
 
@@ -72,13 +73,13 @@ Item {
     anchors.bottom: parent.bottom
     color: root.badgeColor
     border.width: Math.max(1, root.stroke * 0.75)
-    border.color: Color.background
+    border.color: Commons.Color.background
 
     Text {
       anchors.centerIn: parent
       visible: root.deviceCount > 1
       text: root.deviceCount > 9 ? "9+" : String(root.deviceCount)
-      color: Color.background
+      color: Commons.Color.background
       font.family: Style.font.family
       font.pixelSize: Math.max(6, parent.height * 0.62)
       font.bold: true

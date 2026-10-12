@@ -3,6 +3,7 @@ import QtQuick.Controls as QQC2
 import Quickshell
 import Quickshell.Io
 import qs.Commons
+import qs.Commons as Commons
 import qs.Ui
 import "ProcessLimits.js" as ProcessLimits
 
@@ -28,8 +29,8 @@ Panel {
   readonly property bool connected: deviceCount > 0
   readonly property var selectedConnectedDevice: deviceCount > 0 ? connection.connectedDevices[selectedIndex] : null
   readonly property string preferredDeviceId: String(setting("preferredDeviceId", ""))
-  readonly property color foreground: bar ? bar.foreground : Color.foreground
-  readonly property color urgent: bar ? bar.urgent : Color.urgent
+  readonly property color foreground: bar ? bar.foreground : Commons.Color.foreground
+  readonly property color urgent: bar ? bar.urgent : Commons.Color.urgent
   readonly property color dimmedForeground: Qt.darker(foreground, 1.55)
   readonly property string fontFamily: bar ? bar.fontFamily : Style.font.family
   readonly property bool manualAddressValid: connection.addressError(addressField.text) === ""
@@ -485,7 +486,7 @@ Panel {
             width: parent.width
             height: environmentContent.implicitHeight + Style.space(14)
             color: Style.normalFillFor(root.foreground)
-            borderSpec: Border.controlSpec("normal", root.foreground, Color.accent)
+            borderSpec: Border.controlSpec("normal", root.foreground, Commons.Color.accent)
             radius: Style.cornerRadius
 
             Column {
@@ -556,7 +557,7 @@ Panel {
             width: parent.width
             height: diagnosticsText.implicitHeight + Style.space(20)
             color: Style.normalFillFor(root.foreground)
-            borderSpec: Border.controlSpec("normal", root.foreground, Color.accent)
+            borderSpec: Border.controlSpec("normal", root.foreground, Commons.Color.accent)
             radius: Style.cornerRadius
 
             Text {
@@ -581,7 +582,7 @@ Panel {
             color: connection.actionLevel === "error"
               ? Style.normalFillFor(root.urgent)
               : Style.normalFillFor(root.foreground)
-            borderSpec: Border.controlSpec("normal", connection.actionLevel === "error" ? root.urgent : root.foreground, Color.accent)
+            borderSpec: Border.controlSpec("normal", connection.actionLevel === "error" ? root.urgent : root.foreground, Commons.Color.accent)
             radius: Style.cornerRadius
 
             Text {
